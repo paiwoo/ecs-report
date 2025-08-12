@@ -443,7 +443,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <div class="title">🛡️ ECS安全攻击治理汇报</div>
+            <div class="title">🛡️ ECS安全攻击治理成效汇报</div>
             <div class="subtitle">2024年8月2日-12日 安全事件分析与治理总结</div>
         </div>
 
@@ -568,7 +568,7 @@
                 </div>
                 <div class="conclusion-point">
                     <strong>3. 智能防护关键</strong><br>
-                    治理有效，若攻击方手段不变，已无影响；若攻方变更手段，仍需监控，按需采购安防产品。
+                    治理有效，若攻击方手段不变，已无影响，作为网安攻防守方较为被动，若攻方变更手段，仍需进一步处理，建议按需采购安防产品。
                 </div>
             </div>
         </div>
@@ -621,18 +621,35 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
                 plugins: {
                     legend: {
                         display: false
                     },
                     tooltip: {
-                        backgroundColor: 'rgba(45, 55, 72, 0.9)',
+                        enabled: true,
+                        backgroundColor: 'rgba(45, 55, 72, 0.95)',
                         titleColor: '#fff',
                         bodyColor: '#fff',
                         borderColor: '#667eea',
-                        borderWidth: 1,
-                        titleFont: { size: 12 },
-                        bodyFont: { size: 12 }
+                        borderWidth: 2,
+                        titleFont: { size: 13, weight: 'bold' },
+                        bodyFont: { size: 12 },
+                        padding: 12,
+                        cornerRadius: 8,
+                        displayColors: false,
+                        callbacks: {
+                            title: function(context) {
+                                return '日期: ' + context[0].label;
+                            },
+                            label: function(context) {
+                                const value = context.parsed.y;
+                                return '攻击次数: ' + value.toLocaleString() + ' 次';
+                            }
+                        }
                     }
                 },
                 scales: {
@@ -655,6 +672,13 @@
                         ticks: {
                             font: { size: 10 }
                         }
+                    }
+                },
+                elements: {
+                    point: {
+                        radius: 5,
+                        hoverRadius: 8,
+                        hitRadius: 10
                     }
                 }
             }
@@ -685,6 +709,9 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    intersect: true
+                },
                 plugins: {
                     legend: {
                         position: 'bottom',
@@ -695,21 +722,39 @@
                         }
                     },
                     tooltip: {
-                        backgroundColor: 'rgba(45, 55, 72, 0.9)',
+                        enabled: true,
+                        backgroundColor: 'rgba(45, 55, 72, 0.95)',
                         titleColor: '#fff',
                         bodyColor: '#fff',
                         borderColor: '#667eea',
-                        borderWidth: 1,
-                        titleFont: { size: 12 },
+                        borderWidth: 2,
+                        titleFont: { size: 13, weight: 'bold' },
                         bodyFont: { size: 12 },
+                        padding: 12,
+                        cornerRadius: 8,
+                        displayColors: true,
                         callbacks: {
+                            title: function(context) {
+                                return '攻击源地域';
+                            },
                             label: function(context) {
-                                return context.label + ': ' + context.parsed + '%';
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                return label + ': ' + value + '%';
+                            },
+                            afterLabel: function(context) {
+                                return '占总攻击量比例';
                             }
                         }
                     }
                 },
-                cutout: '60%'
+                cutout: '60%',
+                elements: {
+                    arc: {
+                        borderWidth: 2,
+                        hoverBorderWidth: 4
+                    }
+                }
             }
         });
 
@@ -724,5 +769,4 @@
         });
     </script>
 </body>
-
 </html>
