@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECS安全攻击治理汇报</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 15px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            width: 100%;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 35px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 12px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            line-height: 1.2;
+        }
+
+        .subtitle {
+            font-size: 15px;
+            color: #4a5568;
+            font-weight: 500;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 35px;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(79, 172, 254, 0.3);
+            transition: transform 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .metric-card.danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%);
+            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+        }
+
+        .metric-card.success {
+            background: linear-gradient(135deg, #51cf66 0%, #69db7c 100%);
+            box-shadow: 0 8px 25px rgba(81, 207, 102, 0.3);
+        }
+
+        .metric-card.warning {
+            background: linear-gradient(135deg, #ffd43b 0%, #ffd93d 100%);
+            box-shadow: 0 8px 25px rgba(255, 212, 59, 0.3);
+        }
+
+        .metric-number {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            line-height: 1;
+        }
+
+        .metric-label {
+            font-size: 13px;
+            opacity: 0.9;
+            font-weight: 500;
+            line-height: 1.3;
+        }
+
+        .charts-section {
+            margin-bottom: 35px;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
+            margin-bottom: 20px;
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .chart-canvas {
+            height: 300px !important;
+            width: 100% !important;
+        }
+
+        .attack-analysis {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .analysis-card {
+            padding: 18px;
+            border-radius: 10px;
+            border: 2px solid transparent;
+        }
+
+        .analysis-card.attack-form {
+            background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+            border-color: #fc8181;
+        }
+
+        .analysis-card.consequences {
+            background: linear-gradient(135deg, #fffbeb 0%, #feebc8 100%);
+            border-color: #f6ad55;
+        }
+
+        .analysis-card.actual-impact {
+            background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%);
+            border-color: #68d391;
+        }
+
+        .analysis-card h4 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .analysis-card .detail {
+            font-size: 13px;
+            color: #4a5568;
+            line-height: 1.5;
+        }
+
+        .analysis-card ul {
+            margin: 8px 0;
+            padding-left: 18px;
+        }
+
+        .analysis-card ul li {
+            margin-bottom: 4px;
+            color: #4a5568;
+            font-size: 13px;
+        }
+
+        .success-note {
+            color: #38a169;
+            font-weight: 600;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        .attack-sources {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .sources-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .source-item {
+            background: #f7fafc;
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+            border-left: 4px solid #ff6b6b;
+        }
+
+        .source-ip {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 4px;
+            font-size: 13px;
+        }
+
+        .source-location {
+            font-size: 11px;
+            color: #4a5568;
+            margin-bottom: 4px;
+        }
+
+        .source-count {
+            font-size: 16px;
+            font-weight: 700;
+            color: #ff6b6b;
+        }
+
+        .timeline-section {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .timeline {
+            position: relative;
+            padding: 15px 0;
+        }
+
+        .timeline-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .timeline-date {
+            background: #667eea;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-weight: 600;
+            min-width: 60px;
+            text-align: center;
+            margin-right: 15px;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .timeline-content {
+            flex: 1;
+            background: #f7fafc;
+            padding: 12px 15px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .timeline-action {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 4px;
+            font-size: 14px;
+        }
+
+        .timeline-result {
+            color: #4a5568;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .conclusion-section {
+            background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+
+        .conclusion-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .conclusion-points {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+
+        .conclusion-point {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #51cf66;
+            font-size: 14px;
+        }
+
+        .recommendations {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+
+        .recommendation-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            border-top: 4px solid #667eea;
+        }
+
+        .recommendation-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 12px;
+        }
+
+        .recommendation-content {
+            color: #4a5568;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            .title {
+                font-size: 24px;
+            }
+
+            .metric-number {
+                font-size: 24px;
+            }
+
+            .metric-label {
+                font-size: 12px;
+            }
+
+            .sources-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .timeline-date {
+                min-width: 50px;
+                font-size: 11px;
+                padding: 4px 8px;
+            }
+        }
+
+        /* 宽屏适配 */
+        @media (min-width: 1200px) {
+            .container {
+                max-width: 1000px;
+            }
+
+            .metrics-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+
+            .sources-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+
+            .analysis-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .conclusion-points {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .recommendations {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        /* 长图输出优化 */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            
+            .container {
+                max-width: none;
+                box-shadow: none;
+                border-radius: 0;
+                margin: 0;
+            }
+        }
+
+        /* 动画 */
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-slide {
+            animation: slideInUp 0.6s ease forwards;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">🛡️ ECS安全攻击治理汇报</div>
+            <div class="subtitle">2024年8月2日-12日 安全事件分析与治理总结</div>
+        </div>
+
+        <div class="metrics-grid">
+            <div class="metric-card danger">
+                <div class="metric-number">34,279</div>
+                <div class="metric-label">峰值攻击次数/日<br>(8-02)</div>
+            </div>
+            <div class="metric-card success">
+                <div class="metric-number">18</div>
+                <div class="metric-label">当前攻击次数/日<br>(8-12)</div>
+            </div>
+            <div class="metric-card success">
+                <div class="metric-number">99.9%</div>
+                <div class="metric-label">攻击降幅</div>
+            </div>
+            <div class="metric-card success">
+                <div class="metric-number">0中断</div>
+                <div class="metric-label">业务连续性<br>全程零影响</div>
+            </div>
+        </div>
+
+        <div class="charts-section">
+            <div class="chart-container">
+                <div class="chart-title">📈 每日攻击趋势分析</div>
+                <canvas id="trendChart" class="chart-canvas"></canvas>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">🎯 攻击源地域分布</div>
+                <canvas id="sourceChart" class="chart-canvas"></canvas>
+            </div>
+        </div>
+
+        <div class="attack-analysis">
+            <div class="chart-title">⚠️ 攻击面与业务影响分析</div>
+            <div class="analysis-grid">
+                <div class="analysis-card attack-form">
+                    <h4>🔓 攻击形式</h4>
+                    <p><strong>暴力破解（SSH/RDP 口令喷洒）</strong></p>
+                    <p class="detail">攻击者利用全球肉鸡对云主机 22/3389 端口进行高频账户名密码字典攻击，尝试获取系统权限</p>
+                </div>
+                <div class="analysis-card consequences">
+                    <h4>⚡ 可能后果</h4>
+                    <ul>
+                        <li>主机被植入木马</li>
+                        <li>敏感数据泄露</li>
+                        <li>服务不可用</li>
+                        <li>资金被盗用</li>
+                    </ul>
+                </div>
+                <div class="analysis-card actual-impact">
+                    <h4>✅ 实际情况</h4>
+                    <p><strong>零业务影响：</strong>所有爆破流量均在网络层/主机层被丢弃</p>
+                    <p class="success-note">服务可用性 100%，用户无感知</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="attack-sources">
+            <div class="chart-title">🚨 主要攻击源分析 (峰值期)</div>
+            <div class="sources-grid">
+                <div class="source-item">
+                    <div class="source-ip">185.156.73.73</div>
+                    <div class="source-location">荷兰 北荷兰省</div>
+                    <div class="source-count">9,294次</div>
+                </div>
+                <div class="source-item">
+                    <div class="source-ip">116.177.1.136</div>
+                    <div class="source-location">中国 广东广州</div>
+                    <div class="source-count">6,200次</div>
+                </div>
+                <div class="source-item">
+                    <div class="source-ip">77.83.198.245</div>
+                    <div class="source-location">俄罗斯 莫斯科</div>
+                    <div class="source-count">5,800次</div>
+                </div>
+                <div class="source-item">
+                    <div class="source-ip">122.226.191.165</div>
+                    <div class="source-location">中国 浙江杭州</div>
+                    <div class="source-count">5,113次</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-section">
+            <div class="chart-title">⚡ 治理时间轴与关键里程碑</div>
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-date">8-03</div>
+                    <div class="timeline-content">
+                        <div class="timeline-action">启用基础ACL策略</div>
+                        <div class="timeline-result">攻击量从34k降至13k，降幅61.6%</div>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-date">8-07</div>
+                    <div class="timeline-content">
+                        <div class="timeline-action">阿里云防火墙 + 国际网段 + 国内单点封禁策略</div>
+                        <div class="timeline-result">攻击量断崖式下跌至980次，降幅89.6%</div>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-date">8-11</div>
+                    <div class="timeline-content">
+                        <div class="timeline-action">部署自适应威胁阻断</div>
+                        <div class="timeline-result">实时响应式治理，攻击量降至18次，影响可忽略，降幅99.9%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="conclusion-section">
+            <div class="conclusion-title">🎖️ 核心结论</div>
+            <div class="conclusion-points">
+                <div class="conclusion-point">
+                    <strong>1. 治理成效显著</strong><br>
+                    8-02峰值3.4万次/日，经3轮治理后8-12已降至20次以下，降幅99.9%
+                </div>
+                <div class="conclusion-point">
+                    <strong>2. 攻击手段以爆破为主</strong><br>
+                    攻击方具备快速更换IP与云资源能力，传统黑名单效果有限
+                </div>
+                <div class="conclusion-point">
+                    <strong>3. 智能防护关键</strong><br>
+                    治理有效，若攻击方手段不变，已无影响；若攻方变更手段，仍需监控，按需采购安防产品。
+                </div>
+            </div>
+        </div>
+
+        <div class="recommendations">
+            <div class="recommendation-card">
+                <div class="recommendation-title">🛡️ 方案1：DDos防护</div>
+                <div class="recommendation-content">
+                    按流量拦截，监控态势。
+                </div>
+            </div>
+            <div class="recommendation-card">
+                <div class="recommendation-title">📊 方案2：云防火墙 +DDos防护</div>
+                <div class="recommendation-content">
+                    拦截SSH/RDP爆破，支持完整攻击链路追溯，具体方案请进一步讨论。
+                </div>
+            </div>
+            <div class="recommendation-card">
+                <div class="recommendation-title">🚀 方案3：WAF 3.0 + 云防火墙 + 安全管家</div>
+                <div class="recommendation-content">
+                    全域防护 + 7×24专家托管服务。一步到位的全栈安全解决方案。
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 趋势图
+        const trendCtx = document.getElementById('trendChart').getContext('2d');
+        const trendData = {
+            labels: ['8-02', '8-03', '8-04', '8-05', '8-06', '8-07', '8-08', '8-09', '8-10', '8-11', '8-12'],
+            datasets: [{
+                label: '每日攻击次数',
+                data: [34279, 13150, 11189, 12257, 13410, 9465, 980, 1275, 16950, 8944, 18],
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#667eea',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 5
+            }]
+        };
+
+        new Chart(trendCtx, {
+            type: 'line',
+            data: trendData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(45, 55, 72, 0.9)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: '#667eea',
+                        borderWidth: 1,
+                        titleFont: { size: 12 },
+                        bodyFont: { size: 12 }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        },
+                        ticks: {
+                            font: { size: 10 },
+                            callback: function(value) {
+                                return value >= 1000 ? (value/1000).toFixed(1) + 'k' : value;
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        },
+                        ticks: {
+                            font: { size: 10 }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 地域分布饼图
+        const sourceCtx = document.getElementById('sourceChart').getContext('2d');
+        const sourceData = {
+            labels: ['中国', '俄罗斯', '荷兰', '保加利亚', '德国', '其他'],
+            datasets: [{
+                data: [35, 25, 20, 8, 7, 5],
+                backgroundColor: [
+                    '#ff6b6b',
+                    '#4ecdc4',
+                    '#45b7d1',
+                    '#f9ca24',
+                    '#6c5ce7',
+                    '#a0a0a0'
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        };
+
+        new Chart(sourceCtx, {
+            type: 'doughnut',
+            data: sourceData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 10,
+                            usePointStyle: true,
+                            font: { size: 11 }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(45, 55, 72, 0.9)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: '#667eea',
+                        borderWidth: 1,
+                        titleFont: { size: 12 },
+                        bodyFont: { size: 12 },
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ' + context.parsed + '%';
+                            }
+                        }
+                    }
+                },
+                cutout: '60%'
+            }
+        });
+
+        // 简化的入场动画
+        window.addEventListener('load', function() {
+            const elements = document.querySelectorAll('.metric-card, .chart-container, .attack-analysis, .timeline-section, .conclusion-section, .recommendation-card');
+            elements.forEach((el, index) => {
+                setTimeout(() => {
+                    el.classList.add('animate-slide');
+                }, index * 100);
+            });
+        });
+    </script>
+</body>
+</html>
